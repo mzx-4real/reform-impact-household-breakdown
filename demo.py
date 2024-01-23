@@ -37,16 +37,20 @@ st.dataframe(
 # Penalty
 st.subheader("Top 10 household with biggest penalties")
 st.dataframe(
-    difference_person_df.sort_values(by="relative_change", ascending=True)
-    .loc[:, ["person_id", "relative_change"]]
+    difference_person_df.groupby(by="household_id", as_index=False)
+    .agg({"household_net_income_diff": "mean", "relative_change": "mean"})
+    .sort_values(by="relative_change", ascending=True)
+    .rename(columns={"relative_change": "household_net_income_relative_diff"})
     .head(10),
     hide_index=True,
 )
 # Bonus
 st.subheader("Top 10 household with biggest bonuses")
 st.dataframe(
-    difference_person_df.sort_values(by="relative_change", ascending=False)
-    .loc[:, ["person_id", "relative_change"]]
+    difference_person_df.groupby(by="household_id", as_index=False)
+    .agg({"household_net_income_diff": "mean", "relative_change": "mean"})
+    .sort_values(by="relative_change", ascending=False)
+    .rename(columns={"relative_change": "household_net_income_relative_diff"})
     .head(10),
     hide_index=True,
 )
