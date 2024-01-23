@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import random
 
-# Fetch sample data
+# Create sample data
 column_names = [
     "person_id",
     "household_id",
