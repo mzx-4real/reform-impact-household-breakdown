@@ -32,8 +32,16 @@ difference_person_df = difference_person_df._append(
 )
 
 st.title(":rainbow[_Output Demo_]")
+header_description = st.write(
+    "This application shows how households are affected by certain policy reform, based on policyengine simulation."
+)
+repo_link = st.markdown(
+    "This application utilizes the policyengine <a href='https://github.com/PolicyEngine/reform-impact-household-breakdown'>API</a>.",
+    unsafe_allow_html=True,
+)
 # Create data display table
 # Random Raw data
+st.divider()
 st.header("Raw Data", divider="rainbow")
 st.dataframe(
     difference_person_df,
@@ -114,6 +122,7 @@ with penalty_income_tab:
                     values=penalty_df.head(10)["household_income_decile"]
                     .value_counts()
                     .values,
+                    hole=0.3,
                 )
             ]
         )
@@ -138,7 +147,34 @@ with penalty_family_tab:
         label="Average family size",
         value=str(int(average_family_size)),
     )
-
+    with st.expander("Family size distribution"):
+        # Family Size distribution (pie chart)
+        fig = go.Figure(
+            data=[
+                go.Pie(
+                    labels=penalty_df.head(10)["family_size"]
+                    .value_counts()
+                    .index,
+                    values=penalty_df.head(10)["family_size"]
+                    .value_counts()
+                    .values,
+                    hole=0.3,
+                )
+            ]
+        )
+        fig.update_traces(
+            hoverinfo="label+percent",
+            textinfo="value",
+            textfont_size=20,
+            marker=dict(line=dict(color="#000000", width=2)),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    with st.expander("Family size data table"):
+        # Total Family Size (Table)
+        st.dataframe(
+            penalty_df.head(10)[["household_id", "family_size"]],
+            hide_index=True,
+        )
 st.divider()
 
 # Bonus section
@@ -187,6 +223,7 @@ with bonus_income_tab:
                     values=temp["household_income_decile"]
                     .value_counts()
                     .values,
+                    hole=0.3,
                 )
             ]
         )
@@ -208,7 +245,30 @@ with bonus_family_tab:
         label="Average family size",
         value=str(int(average_family_size)),
     )
-
+    with st.expander("Family size distribution"):
+        # Family Size distribution (pie chart)
+        fig = go.Figure(
+            data=[
+                go.Pie(
+                    labels=temp["family_size"].value_counts().index,
+                    values=temp["family_size"].value_counts().values,
+                    hole=0.3,
+                )
+            ]
+        )
+        fig.update_traces(
+            hoverinfo="label+percent",
+            textinfo="value",
+            textfont_size=20,
+            marker=dict(line=dict(color="#000000", width=2)),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    with st.expander("Family size data table"):
+        # Total Family Size (Table)
+        st.dataframe(
+            temp[["household_id", "family_size"]],
+            hide_index=True,
+        )
 
 st.header("Data Analysis", divider="rainbow")
 
@@ -223,6 +283,4 @@ st.scatter_chart(
     color="#ffaa00",
 )
 
-# Number of dependent (data table) / distribution (pie chart)
-# Average number of dependent (metric)
 # Dataframe styling
