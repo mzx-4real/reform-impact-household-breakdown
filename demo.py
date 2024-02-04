@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 import numpy as np
 
 # Create sample data
+# Actual data may have 'NA'/'0' value
 column_names = [
     "person_id",
     "household_id",
@@ -20,16 +21,8 @@ column_names = [
     "household_net_income_base",
     "relative_change",
 ]
-sample_value = []
-for _ in range(20):
-    random_numbers = [random.randint(-100, 100) for _ in range(10)]
-    sample_value.append(random_numbers)
-sample_data = [dict(zip(column_names, value)) for value in sample_value]
-
-difference_person_df = pd.DataFrame(columns=column_names)
-difference_person_df = difference_person_df._append(
-    sample_data, ignore_index=True
-)
+sample_value = [[random.randint(1, 10) for _ in range(10)] for _ in range(20)]
+difference_person_df = pd.DataFrame(sample_value, columns=column_names)
 
 st.title(":rainbow[_Output Demo_]")
 header_description = st.write(
@@ -50,25 +43,24 @@ st.dataframe(
 
 
 # Penalty
-penalty_df = (
+temp = (
     difference_person_df.groupby(by="household_id", as_index=False)
     .agg(
         {
-            "household_net_income_diff": "mean",
-            "relative_change": "mean",
             "person_id": "count",
-            "household_net_income_base": "mean",
-            "household_income_decile": "mean",
         }
     )
-    .sort_values(by="relative_change", ascending=True)
-    .rename(
-        columns={
-            "relative_change": "household_net_income_relative_diff",
-            "person_id": "family_size",
-            "household_net_income_base": "household_net_income",
-        }
-    )
+    .rename(columns={"person_id": "family_size"})
+)
+penalty_df = difference_person_df.merge(temp, how="inner", on="household_id")
+penalty_df["relative_change"][penalty_df["relative_change"].isna()] = 0
+penalty_df = penalty_df.sort_values(
+    by="relative_change", ascending=True
+).rename(
+    columns={
+        "relative_change": "household_net_income_relative_diff",
+        "household_net_income_base": "household_net_income",
+    }
 )
 
 st.header("Household net income changes", divider="rainbow")
@@ -283,4 +275,76 @@ st.scatter_chart(
     color="#ffaa00",
 )
 
+# Income decile transition
+st.subheader("Household income decile transition visualization")
+# Calculate deciles based on household net income
+difference_person_df["household_net_income_reform"] = (
+    difference_person_df["household_net_income_base"]
+    + difference_person_df["household_net_income_diff"]
+)
+difference_person_df["household_income_decile_reform"] = (
+    pd.qcut(
+        difference_person_df["household_net_income_reform"],
+        q=10,
+        labels=False,
+        duplicates="drop",
+    )
+    + 1
+)
+# Calculate frequency of transitions between old and new deciles
+transition_counts = (
+    difference_person_df.groupby(
+        ["household_income_decile", "household_income_decile_reform"]
+    )
+    .size()
+    .reset_index()
+    .rename(columns={0: "Count"}, inplace=False)
+)
+
+# Create Plotly Sankey diagram
+fig = go.Figure(
+    data=[
+        go.Sankey(
+            arrangement="snap",
+            node=dict(
+                pad=15,
+                thickness=20,
+                line=dict(color="black", width=0.5),
+                label=[
+                    "Base Decile 1",
+                    "Base Decile 2",
+                    "Base Decile 3",
+                    "Base Decile 4",
+                    "Base Decile 5",
+                    "Base Decile 6",
+                    "Base Decile 7",
+                    "Base Decile 8",
+                    "Base Decile 9",
+                    "Base Decile 10",  # index 9
+                    "After Decile 1",  # index 10
+                    "After Decile 2",
+                    "After Decile 3",
+                    "After Decile 4",
+                    "After Decile 5",
+                    "After Decile 6",
+                    "After Decile 7",
+                    "After Decile 8",
+                    "After Decile 9",
+                    "After Decile 10",
+                ],
+            ),
+            link=dict(
+                source=(transition_counts["household_income_decile"] - 1),
+                target=(
+                    transition_counts["household_income_decile_reform"] + 9
+                ),
+                value=transition_counts["Count"],
+            ),
+        )
+    ]
+)
+
+# Set layout options
+fig.update_layout(title="Income Decile Transitions", font=dict(size=12))
+st.plotly_chart(fig, use_container_width=True)
 # Dataframe styling
