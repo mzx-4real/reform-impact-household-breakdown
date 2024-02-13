@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
 import numpy as np
+from policyengine_core.charts import format_fig
+
 
 # Create sample data
 # Actual data may have 'NA'/'0' value
@@ -29,18 +31,58 @@ header_description = st.write(
     "This application shows how households are affected by certain policy reform, based on policyengine simulation."
 )
 repo_link = st.markdown(
-    "This application utilizes the policyengine <a href='https://github.com/PolicyEngine/reform-impact-household-breakdown'>API</a>.",
+    "This application utilizes the policyengine <a href='https://github.com/PolicyEngine/policyengine-us'>API</a>.",
     unsafe_allow_html=True,
 )
+
 # Create data display table
-# Random Raw data
 st.divider()
 st.header("Raw Data", divider="rainbow")
-st.dataframe(
-    difference_person_df,
-    hide_index=True,
+
+
+# dataframe styling
+# Define a function to apply CSS styles
+def apply_styles(df):
+    temp = df.style.set_properties(
+        **{
+            "font-family": "Roboto Serif",
+            "color": "black",
+        },
+    ).set_table_styles(
+        [
+            {
+                "selector": "th",
+                "props": [
+                    ("background-color", "lightblue"),
+                    ("color", "black"),
+                    ("font-size", "14px"),
+                ],
+            },
+            {
+                "selector": "tbody",
+                "props": [
+                    ("background-color", "white"),
+                    ("color", "black"),
+                    ("font-size", "14px"),
+                ],
+            },
+        ]
+    )
+
+    return temp
+
+
+st.dataframe(difference_person_df)
+col1, col2 = st.columns([0.8, 0.2])
+col2.image(
+    "https://raw.githubusercontent.com/PolicyEngine/policyengine-app/master/src/images/logos/policyengine/blue.png",
+    width=100,  # Manually Adjust the width of the image as per requirement
+)
+st.table(
+    apply_styles(difference_person_df),
 )
 
+st.divider()
 
 # Penalty
 temp = (
@@ -72,6 +114,7 @@ x2 = np.random.randn(200) + 2
 hist_data = [x1, x2]
 group_labels = ["Before reform", "After reform"]
 fig = ff.create_distplot(hist_data, group_labels, bin_size=[0.1, 0.25, 0.5])
+fig = format_fig(fig)
 st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
@@ -83,12 +126,35 @@ ax1.set_title("Distribution of household net income relative differences")
 ax1.set_xlabel("Frequency")
 ax1.set_ylabel("Ralative difference")
 st.pyplot(fig1)
+st.divider()
 
+# histogram
+# Create a histogram using Plotly
+fig = go.Figure(
+    data=[go.Histogram(x=penalty_df["household_net_income_relative_diff"])]
+)
+
+# Update layout with custom x and y axis labels
+fig.update_layout(
+    title="Distribution of household net income relative differences",
+    xaxis=dict(title="Ralative difference"),  # Custom x-axis label
+    yaxis=dict(title="Frequency"),  # Custom y-axis label
+)
+fig = format_fig(fig)
+st.plotly_chart(fig, use_container_width=True)
 st.divider()
 
 # penalties section
 st.subheader("Top 10 :red[Penalties] :arrow_down:")
-st.dataframe(penalty_df.head(10).reset_index(drop=True), hide_index=True)
+temp = penalty_df.head(10).reset_index(drop=True)
+st.table(
+    apply_styles(temp),
+)
+col1, col2 = st.columns([0.8, 0.2])
+col2.image(
+    "https://raw.githubusercontent.com/PolicyEngine/policyengine-app/master/src/images/logos/policyengine/blue.png",
+    width=80,  # Manually Adjust the width of the image as per requirement
+)
 penalty_income_tab, penalty_family_tab = st.tabs(
     ["Income Status", "Family Status"]
 )
@@ -105,12 +171,16 @@ with penalty_income_tab:
 
     with st.expander("Household income decile distribution"):
         # Household income decile distribution (pie chart)
+        label_list = (
+            penalty_df.head(10)["household_income_decile"].value_counts().index
+        )
+        prefix_label_list = [
+            f"Income Decile {number}" for number in label_list
+        ]
         fig = go.Figure(
             data=[
                 go.Pie(
-                    labels=penalty_df.head(10)["household_income_decile"]
-                    .value_counts()
-                    .index,
+                    labels=prefix_label_list,
                     values=penalty_df.head(10)["household_income_decile"]
                     .value_counts()
                     .values,
@@ -119,20 +189,28 @@ with penalty_income_tab:
             ]
         )
         fig.update_traces(
-            hoverinfo="label+percent",
-            textinfo="value",
+            hoverinfo="label+value",
+            textinfo="percent",
             textfont_size=20,
             marker=dict(line=dict(color="#000000", width=2)),
         )
+        fig = format_fig(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     with st.expander("Household income data table"):
         # Total Household income (Table)
-        st.dataframe(
+        temp = (
             penalty_df[["household_id", "household_net_income"]]
             .head(10)
-            .reset_index(drop=True),
-            hide_index=True,
+            .reset_index(drop=True)
+        )
+        st.table(
+            apply_styles(temp),
+        )
+        col1, col2 = st.columns([0.8, 0.2])
+        col2.image(
+            "https://raw.githubusercontent.com/PolicyEngine/policyengine-app/master/src/images/logos/policyengine/blue.png",
+            width=80,  # Manually Adjust the width of the image as per requirement
         )
 with penalty_family_tab:
     st.metric(
@@ -141,12 +219,14 @@ with penalty_family_tab:
     )
     with st.expander("Family size distribution"):
         # Family Size distribution (pie chart)
+        label_list = penalty_df.head(10)["family_size"].value_counts().index
+        prefix_label_list = [
+            f"Family Size of {number}" for number in label_list
+        ]
         fig = go.Figure(
             data=[
                 go.Pie(
-                    labels=penalty_df.head(10)["family_size"]
-                    .value_counts()
-                    .index,
+                    labels=prefix_label_list,
                     values=penalty_df.head(10)["family_size"]
                     .value_counts()
                     .values,
@@ -155,29 +235,44 @@ with penalty_family_tab:
             ]
         )
         fig.update_traces(
-            hoverinfo="label+percent",
-            textinfo="value",
+            hoverinfo="label+value",
+            textinfo="percent",
             textfont_size=20,
             marker=dict(line=dict(color="#000000", width=2)),
         )
+        fig = format_fig(fig)
         st.plotly_chart(fig, use_container_width=True)
     with st.expander("Family size data table"):
         # Total Family Size (Table)
-        st.dataframe(
-            penalty_df.head(10)[["household_id", "family_size"]],
-            hide_index=True,
+        temp = penalty_df.head(10)[
+            ["household_id", "family_size"]
+        ].reset_index(drop=True)
+        st.table(
+            apply_styles(temp),
+        )
+        col1, col2 = st.columns([0.8, 0.2])
+        col2.image(
+            "https://raw.githubusercontent.com/PolicyEngine/policyengine-app/master/src/images/logos/policyengine/blue.png",
+            width=80,  # Manually Adjust the width of the image as per requirement
         )
 st.divider()
 
 # Bonus section
 st.subheader("Top 10 :green[Bonuses] :arrow_up:")
-st.dataframe(
+temp = (
     penalty_df.sort_values(
         by="household_net_income_relative_diff", ascending=False
     )
     .head(10)
-    .reset_index(drop=True),
-    hide_index=True,
+    .reset_index(drop=True)
+)
+st.table(
+    apply_styles(temp),
+)
+col1, col2 = st.columns([0.8, 0.2])
+col2.image(
+    "https://raw.githubusercontent.com/PolicyEngine/policyengine-app/master/src/images/logos/policyengine/blue.png",
+    width=80,  # Manually Adjust the width of the image as per requirement
 )
 bonus_income_tab, bonus_family_tab = st.tabs(
     ["Income Status", "Family Status"]
@@ -206,12 +301,14 @@ with bonus_income_tab:
     )
     with st.expander("Household income decile distribution"):
         # Household income decile distribution (pie chart)
+        label_list = temp["household_income_decile"].value_counts().index
+        prefix_label_list = [
+            f"Income Decile {number}" for number in label_list
+        ]
         fig = go.Figure(
             data=[
                 go.Pie(
-                    labels=temp["household_income_decile"]
-                    .value_counts()
-                    .index,
+                    labels=prefix_label_list,
                     values=temp["household_income_decile"]
                     .value_counts()
                     .values,
@@ -220,18 +317,25 @@ with bonus_income_tab:
             ]
         )
         fig.update_traces(
-            hoverinfo="label+percent",
-            textinfo="value",
+            hoverinfo="label+value",
+            textinfo="percent",
             textfont_size=20,
             marker=dict(line=dict(color="#000000", width=2)),
         )
+        fig = format_fig(fig)
         st.plotly_chart(fig, use_container_width=True)
     with st.expander("Household income data table"):
         # Total Household income (Table)
-        st.dataframe(
-            temp[["household_id", "household_net_income"]],
-            hide_index=True,
+        temp2 = temp[["household_id", "household_net_income"]]
+        st.table(
+            apply_styles(temp2),
         )
+        col1, col2 = st.columns([0.8, 0.2])
+        col2.image(
+            "https://raw.githubusercontent.com/PolicyEngine/policyengine-app/master/src/images/logos/policyengine/blue.png",
+            width=80,  # Manually Adjust the width of the image as per requirement
+        )
+
 with bonus_family_tab:
     st.metric(
         label="Average family size",
@@ -239,27 +343,37 @@ with bonus_family_tab:
     )
     with st.expander("Family size distribution"):
         # Family Size distribution (pie chart)
+        label_list = temp["family_size"].value_counts().index
+        prefix_label_list = [
+            f"Family Size of {number}" for number in label_list
+        ]
         fig = go.Figure(
             data=[
                 go.Pie(
-                    labels=temp["family_size"].value_counts().index,
+                    labels=prefix_label_list,
                     values=temp["family_size"].value_counts().values,
                     hole=0.3,
                 )
             ]
         )
         fig.update_traces(
-            hoverinfo="label+percent",
-            textinfo="value",
+            hoverinfo="label+value",
+            textinfo="percent",
             textfont_size=20,
             marker=dict(line=dict(color="#000000", width=2)),
         )
+        fig = format_fig(fig)
         st.plotly_chart(fig, use_container_width=True)
     with st.expander("Family size data table"):
         # Total Family Size (Table)
-        st.dataframe(
-            temp[["household_id", "family_size"]],
-            hide_index=True,
+        temp2 = temp[["household_id", "family_size"]]
+        st.table(
+            apply_styles(temp2),
+        )
+        col1, col2 = st.columns([0.8, 0.2])
+        col2.image(
+            "https://raw.githubusercontent.com/PolicyEngine/policyengine-app/master/src/images/logos/policyengine/blue.png",
+            width=80,  # Manually Adjust the width of the image as per requirement
         )
 
 st.header("Data Analysis", divider="rainbow")
@@ -311,26 +425,26 @@ fig = go.Figure(
                 thickness=20,
                 line=dict(color="black", width=0.5),
                 label=[
-                    "Base Decile 1",
-                    "Base Decile 2",
-                    "Base Decile 3",
-                    "Base Decile 4",
-                    "Base Decile 5",
-                    "Base Decile 6",
-                    "Base Decile 7",
-                    "Base Decile 8",
-                    "Base Decile 9",
-                    "Base Decile 10",  # index 9
-                    "After Decile 1",  # index 10
-                    "After Decile 2",
-                    "After Decile 3",
-                    "After Decile 4",
-                    "After Decile 5",
-                    "After Decile 6",
-                    "After Decile 7",
-                    "After Decile 8",
-                    "After Decile 9",
-                    "After Decile 10",
+                    "Base 1st Decile",
+                    "Base 2th Decile",
+                    "Base 3th Decile",
+                    "Base 4th Decile",
+                    "Base 5th Decile",
+                    "Base 6th Decile",
+                    "Base 7th Decile",
+                    "Base 8th Decile",
+                    "Base 9th Decile",
+                    "Base 10th Decile",  # index 9
+                    "After reform 1st Decile",  # index 10
+                    "After reform 2th Decile",
+                    "After reform 3th Decile",
+                    "After reform 4th Decile",
+                    "After reform 5th Decile",
+                    "After reform 6th Decile",
+                    "After reform 7th Decile",
+                    "After reform 8th Decile",
+                    "After reform 9th Decile",
+                    "After reform 10th Decile",
                 ],
             ),
             link=dict(
@@ -346,5 +460,6 @@ fig = go.Figure(
 
 # Set layout options
 fig.update_layout(title="Income Decile Transitions", font=dict(size=12))
+fig = format_fig(fig)
 st.plotly_chart(fig, use_container_width=True)
-# Dataframe styling
+# Person-Level dataframe and Household-Level dataframe problem
