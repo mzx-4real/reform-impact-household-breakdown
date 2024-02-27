@@ -26,9 +26,14 @@ if st.button("Start simulation"):
         local_vars = locals()
         # Retrieve the value of the ***desired variable*** from the local vars
         # Retrieve DataFrames if they exist
-        baseline_person = local_vars.get("baseline_person")
-        reformed_person = local_vars.get("reformed_person")
-        difference_person = local_vars.get("difference_person")
+        baseline = local_vars.get("baseline")
+        reformed = local_vars.get("reformed")
+        df = baseline.calculate_dataframe(["household_net_income", "employment_income", "state_code"], map_to="household", use_weights=False)
+        # Rename household_net_income to baseline_household_net_income.
+        df.rename(dict("household_net_income": "baseline_net_income")) # finish syntax
+        df["reformed_net_income"] = reformed.calc("household_net_income")
+        df["change_net_income"] = df.reformed_net_income - df.baseline_net_income
+        print(df)
         if (
             isinstance(baseline_person, pd.DataFrame)
             and isinstance(reformed_person, pd.DataFrame)
