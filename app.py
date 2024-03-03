@@ -12,7 +12,7 @@ st.title("Policy Reform Impact Visualization")
 # Input Section
 # Input field for code copied from website
 input_code = st.text_area(
-    "Enter code copied from PolicyEngine website.\n\n Beware: Baseline dataframe variable name must be baseline_person\n\n Reformed dataframe variable name must be reformed_person."
+    "Enter code copied from PolicyEngine website.\n\n Beware: Baseline microsimulation variable name must be baseline\n\n Reform microsimulation variable name must be reformed."
 )
 
 # Button to trigger the calculation
@@ -83,17 +83,13 @@ if st.button("Start simulation"):
             output_container.dataframe(reformed_household_df)
             output_container.write("Final Household DataFrame:")
             output_container.dataframe(fin_household_df)
-        elif (
-            baseline_household_df is None
-            or reformed_household_df is None
-            or fin_household_df is None
-        ):
+        elif baseline is None or reformed is None:
             st.error(
-                "One of the dataframes return none. Check if policyengine simulation codes are pasted correctly."
+                "Target microsimulation object not found. Check if the output variable names are in the expected format."
             )
         else:
             st.error(
-                "Target dataFrames not found. Check if the output variable names are in the expected format."
+                "One of the dataframes return none. Check if policyengine simulation codes are pasted correctly."
             )
     except SyntaxError as se:
         st.error(
