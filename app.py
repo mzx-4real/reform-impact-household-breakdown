@@ -25,32 +25,68 @@ if st.button("Start simulation"):
         # Access variables from the local namespace
         local_vars = locals()
         # Retrieve the value of the ***desired variable*** from the local vars
-        # Retrieve DataFrames if they exist
+        # Retrieve microsimulation object
         baseline = local_vars.get("baseline")
         reformed = local_vars.get("reformed")
-        df = baseline.calculate_dataframe(["household_net_income", "employment_income", "state_code"], map_to="household", use_weights=False)
-        # Rename household_net_income to baseline_household_net_income.
-        df.rename(dict("household_net_income": "baseline_net_income")) # finish syntax
-        df["reformed_net_income"] = reformed.calc("household_net_income")
-        df["change_net_income"] = df.reformed_net_income - df.baseline_net_income
-        print(df)
+        # Household variable list
+        HOUSEHOLD_VARIABLES = [
+            "household_id",
+            "age",
+            "household_net_income",
+            "household_income_decile",
+            "in_poverty",
+            "household_tax",
+            "household_benefits",
+        ]
+        # Calculate household microdataframe
+        baseline_household_df = baseline.calculate_dataframe(
+            HOUSEHOLD_VARIABLES, map_to="household", use_weights=False
+        )
+        reformed_household_df = reformed.calculate_dataframe(
+            HOUSEHOLD_VARIABLES, map_to="household", use_weights=False
+        )
+        # Create merged dataframe with difference between household_net_income,
+        # household_tax and household_benefits
+        fin_household_df = baseline_household_df.merge(
+            reformed_household_df,
+            on="household_id",
+            suffixes=("_baseline", "_reformed"),
+        )
+        fin_household_df["net_income_change"] = (
+            fin_household_df["household_net_income_reformed"]
+            - fin_household_df["household_net_income_baseline"]
+        )
+        fin_household_df["household_tax_change"] = (
+            fin_household_df["household_tax_reformed"]
+            - fin_household_df["household_tax_baseline"]
+        )
+        fin_household_df["household_benefits_change"] = (
+            fin_household_df["household_benefits_reformed"]
+            - fin_household_df["household_benefits_baseline"]
+        )
+        fin_household_df["net_income_relative_change"] = (
+            fin_household_df["net_income_change"]
+            / fin_household_df["household_net_income_baseline"]
+        )
+
+        # Check result and display
         if (
-            isinstance(baseline_person, pd.DataFrame)
-            and isinstance(reformed_person, pd.DataFrame)
-            and isinstance(difference_person, pd.DataFrame)
+            isinstance(baseline_household_df, pd.DataFrame)
+            and isinstance(reformed_household_df, pd.DataFrame)
+            and isinstance(fin_household_df, pd.DataFrame)
         ):
             output_container.success("Code executed successfully!")
             # Display the dataframes for debugging; Delete when confirmed
-            output_container.write("Baseline Person DataFrame:")
-            output_container.dataframe(baseline_person)
-            output_container.write("Reformed Person DataFrame:")
-            output_container.dataframe(reformed_person)
-            output_container.write("Difference Person DataFrame:")
-            output_container.dataframe(difference_person)
+            output_container.write("Baseline Household DataFrame:")
+            output_container.dataframe(baseline_household_df)
+            output_container.write("Reformed Household DataFrame:")
+            output_container.dataframe(reformed_household_df)
+            output_container.write("Final Household DataFrame:")
+            output_container.dataframe(fin_household_df)
         elif (
-            baseline_person is None
-            or reformed_person is None
-            or difference_person is None
+            baseline_household_df is None
+            or reformed_household_df is None
+            or fin_household_df is None
         ):
             st.error(
                 "One of the dataframes return none. Check if policyengine simulation codes are pasted correctly."
