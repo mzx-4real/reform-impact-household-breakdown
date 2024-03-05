@@ -1,11 +1,5 @@
 import streamlit as st
 import pandas as pd
-from policyengine_us import Microsimulation
-from policyengine_core.reforms import Reform
-from policyengine_core.periods import instant
-import plotly.graph_objects as go
-import plotly.figure_factory as ff
-import numpy as np
 
 # Start of streamlit application
 st.title("Policy Reform Impact Visualization")
@@ -20,7 +14,7 @@ if st.button("Start simulation"):
     # Create an empty output container
     output_container = st.empty()
     try:
-        # Execute the Python code with the global dictionary
+        # Execute the Python code
         exec(input_code)
         # Access variables from the local namespace
         local_vars = locals()
