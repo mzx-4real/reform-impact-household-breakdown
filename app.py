@@ -36,20 +36,18 @@ def apply_styles(df: pd.DataFrame):
     return temp
 
 
-# function to create income distribution graph
+# function to display income distribution graph
 def household_income_graph(scope_df: pd.DataFrame):
     # Household income decile distribution (pie chart)
     label_list = (
-        scope_df.head(10)["household_income_decile_baseline"]
-        .value_counts()
-        .index
+        scope_df["household_income_decile_baseline"].value_counts().index
     )
     prefix_label_list = [f"Income Decile {number}" for number in label_list]
     fig = go.Figure(
         data=[
             go.Pie(
                 labels=prefix_label_list,
-                values=scope_df.head(10)["household_income_decile_baseline"]
+                values=scope_df["household_income_decile_baseline"]
                 .value_counts()
                 .values,
                 hole=0.3,
@@ -63,25 +61,13 @@ def household_income_graph(scope_df: pd.DataFrame):
         marker=dict(line=dict(color="#000000", width=2)),
     )
     fig = format_fig(fig)
-    return fig
+    st.plotly_chart(fig, use_container_width=True)
 
 
 # function to display styled datatable
 def styled_datatable(scope_df: pd.DataFrame):
-    temp = (
-        scope_df[
-            [
-                "household_id",
-                "household_net_income_baseline",
-                "net_income_change",
-                "net_income_relative_change",
-            ]
-        ]
-        .head(10)
-        .reset_index(drop=True)
-    )
     st.table(
-        apply_styles(temp),
+        apply_styles(scope_df),
     )
     col1, col2 = st.columns([0.8, 0.2])
     col2.image(
@@ -93,15 +79,15 @@ def styled_datatable(scope_df: pd.DataFrame):
 # function to display key metric
 def household_key_metric(scope_df: pd.DataFrame, metric: str):
     if metric == "income":
-        average_household_income = (
-            scope_df["household_net_income_baseline"].head(10).mean()
-        )
+        average_household_income = scope_df[
+            "household_net_income_baseline"
+        ].mean()
         st.metric(
             label="Average Household income",
             value="$" + str(int(average_household_income)),
         )
     elif metric == "family":
-        average_family_size = scope_df["family_size"].head(10).mean()
+        average_family_size = scope_df["family_size"].mean()
         st.metric(
             label="Average family size",
             value=str(int(average_family_size)),
@@ -187,8 +173,12 @@ if st.button("Start simulation"):
             # Output Section
             # penalties section
             st.subheader("Top 10 :red[Penalties] :arrow_down:")
-            scope_df = fin_household_df.sort_values(
-                by="net_income_relative_change", ascending=True
+            scope_df = (
+                fin_household_df.sort_values(
+                    by="net_income_relative_change", ascending=True
+                )
+                .head(10)
+                .reset_index(drop=True)
             )
             penalty_income_tab, penalty_family_tab = st.tabs(
                 ["Income Status", "Family Status"]
@@ -196,12 +186,18 @@ if st.button("Start simulation"):
             with penalty_income_tab:
                 household_key_metric(scope_df=scope_df, metric="income")
                 with st.expander("Household income decile distribution"):
-                    distribution_fig = household_income_graph(
-                        scope_df=scope_df
-                    )
-                    st.plotly_chart(distribution_fig, use_container_width=True)
+                    household_income_graph(scope_df=scope_df)
+
                 with st.expander("Household income data table"):
-                    styled_datatable(scope_df=scope_df)
+                    temp = scope_df[
+                        [
+                            "household_id",
+                            "household_net_income_baseline",
+                            "net_income_change",
+                            "net_income_relative_change",
+                        ]
+                    ]
+                    styled_datatable(scope_df=temp)
         elif baseline is None or reformed is None:
             st.error(
                 "Target microsimulation object not found. Check if the output variable names are in the expected format."
