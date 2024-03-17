@@ -187,7 +187,32 @@ if st.button("Start simulation"):
                 household_key_metric(scope_df=scope_df, metric="income")
                 with st.expander("Household income decile distribution"):
                     household_income_graph(scope_df=scope_df)
-
+                with st.expander("Household income data table"):
+                    temp = scope_df[
+                        [
+                            "household_id",
+                            "household_net_income_baseline",
+                            "net_income_change",
+                            "net_income_relative_change",
+                        ]
+                    ]
+                    styled_datatable(scope_df=temp)
+            # bonus section
+            st.subheader("Top 10 :green[Bonuses] :arrow_up:")
+            scope_df = (
+                fin_household_df.sort_values(
+                    by="net_income_relative_change", ascending=False
+                )
+                .head(10)
+                .reset_index(drop=True)
+            )
+            bonus_income_tab, bonus_family_tab = st.tabs(
+                ["Income Status", "Family Status"]
+            )
+            with bonus_income_tab:
+                household_key_metric(scope_df=scope_df, metric="income")
+                with st.expander("Household income decile distribution"):
+                    household_income_graph(scope_df=scope_df)
                 with st.expander("Household income data table"):
                     temp = scope_df[
                         [
