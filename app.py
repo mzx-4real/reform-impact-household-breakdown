@@ -2,9 +2,43 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from policyengine_core.charts import format_fig
+import ast
+
+# Initialize period variable
+input_period = None
 
 
-# dataframe styling
+# Define a visitor subclass to traverse the AST and extract the period number
+class PeriodExtractor(ast.NodeVisitor):
+    def visit_Assign(self, node):
+        global input_period
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id == "baseline_person":
+                # Extract the period number from the 'baseline_person' line
+                for kw in node.value.keywords:
+                    if kw.arg == "period":
+                        input_period = kw.value.n
+
+
+# Use ast.NodeTransformer to traverse the AST and filter out the unwanted lines
+class FilterTransformer(ast.NodeTransformer):
+    # Define a function to filter out the lines you want to remove
+    def filter_lines(self, node):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id.startswith(
+                    ("baseline_person", "reformed_person", "difference_person")
+                ):
+                    return None
+        return node
+
+    def visit(self, node):
+        node = self.filter_lines(node)
+        return (
+            ast.NodeTransformer.visit(self, node) if node is not None else None
+        )
+
+
 # Define a function to apply CSS styles
 def apply_styles(df: pd.DataFrame):
     temp = df.style.set_properties(
@@ -104,9 +138,30 @@ input_code = st.text_area(
 
 # Button to trigger the calculation
 if st.button("Start simulation"):
+    # Preprocess input_code to extract period and delete last three line of code to save runtime
+    try:
+        # Parse the code into an abstract syntax tree (AST)
+        tree = ast.parse(input_code)
+
+        # Instantiate the visitor and visit the AST
+        period_extractor = PeriodExtractor()
+        period_extractor.visit(tree)
+
+        # Apply the transformation to remove the unwanted lines
+        transformer = FilterTransformer()
+        new_tree = transformer.visit(tree)
+
+        # Convert the modified AST back to code
+        modified_code = ast.unparse(new_tree)
+        # Print out for debugging purpose, delete when confirmed
+        st.write(
+            f"Extracted Period:{input_period}\nModified Code:{modified_code}"
+        )
+    except Exception as e:
+        st.error(f"Error: {e}")
     try:
         # Execute the Python code
-        exec(input_code)
+        exec(modified_code)
         # Access variables from the local namespace
         local_vars = locals()
         # Retrieve the value of the ***desired variable*** from the local vars
@@ -125,10 +180,16 @@ if st.button("Start simulation"):
         ]
         # Calculate household microdataframe
         baseline_household_df = baseline.calculate_dataframe(
-            HOUSEHOLD_VARIABLES, map_to="household", use_weights=False
+            HOUSEHOLD_VARIABLES,
+            period=input_period,
+            map_to="household",
+            use_weights=False,
         )
         reformed_household_df = reformed.calculate_dataframe(
-            HOUSEHOLD_VARIABLES, map_to="household", use_weights=False
+            HOUSEHOLD_VARIABLES,
+            period=input_period,
+            map_to="household",
+            use_weights=False,
         )
         # Create merged dataframe with difference between household_net_income,
         # household_tax and household_benefits
