@@ -154,8 +154,8 @@ if st.button("Start simulation"):
         # Convert the modified AST back to code
         modified_code = ast.unparse(new_tree)
         # Print out for debugging purpose, delete when confirmed
-        st.write(
-            f"Extracted Period:{input_period}\nModified Code:{modified_code}"
+        st.text(
+            f"Extracted Period:{input_period}\nModified Code:\n{modified_code}"
         )
     except Exception as e:
         st.error(f"Error: {e}")
