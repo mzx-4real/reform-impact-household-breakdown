@@ -214,7 +214,10 @@ if st.button("Start simulation"):
             fin_household_df["net_income_change"]
             / fin_household_df["household_net_income_baseline"]
         )
-
+        # Imputation
+        fin_household_df.fillna(
+            value={"net_income_relative_change": 0}, inplace=True
+        )
         # Check result and display
         if (
             isinstance(baseline_household_df, pd.DataFrame)
