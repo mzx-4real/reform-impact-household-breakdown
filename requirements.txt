@@ -2,3 +2,4 @@ policyengine-us
 streamlit 
 black
 pandas
+plotly

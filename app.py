@@ -1,5 +1,132 @@
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
+from policyengine_core.charts import format_fig
+import ast
+
+# Initialize period variable
+input_period = None
+
+
+# Define a visitor subclass to traverse the AST and extract the period number
+class PeriodExtractor(ast.NodeVisitor):
+    def visit_Assign(self, node):
+        global input_period
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id == "baseline_person":
+                # Extract the period number from the 'baseline_person' line
+                for kw in node.value.keywords:
+                    if kw.arg == "period":
+                        input_period = kw.value.n
+
+
+# Use ast.NodeTransformer to traverse the AST and filter out the unwanted lines
+class FilterTransformer(ast.NodeTransformer):
+    # Define a function to filter out the lines you want to remove
+    def filter_lines(self, node):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id.startswith(
+                    ("baseline_person", "reformed_person", "difference_person")
+                ):
+                    return None
+        return node
+
+    def visit(self, node):
+        node = self.filter_lines(node)
+        return (
+            ast.NodeTransformer.visit(self, node) if node is not None else None
+        )
+
+
+# Define a function to apply CSS styles
+def apply_styles(df: pd.DataFrame):
+    temp = df.style.set_properties(
+        **{
+            "font-family": "Roboto Serif",
+            "color": "black",
+        },
+    ).set_table_styles(
+        [
+            {
+                "selector": "th",
+                "props": [
+                    ("background-color", "lightblue"),
+                    ("color", "black"),
+                    ("font-size", "14px"),
+                ],
+            },
+            {
+                "selector": "tbody",
+                "props": [
+                    ("background-color", "white"),
+                    ("color", "black"),
+                    ("font-size", "14px"),
+                ],
+            },
+        ]
+    )
+
+    return temp
+
+
+# function to display income distribution graph
+def household_income_graph(scope_df: pd.DataFrame):
+    # Household income decile distribution (pie chart)
+    label_list = (
+        scope_df["household_income_decile_baseline"].value_counts().index
+    )
+    prefix_label_list = [f"Income Decile {number}" for number in label_list]
+    fig = go.Figure(
+        data=[
+            go.Pie(
+                labels=prefix_label_list,
+                values=scope_df["household_income_decile_baseline"]
+                .value_counts()
+                .values,
+                hole=0.3,
+            )
+        ]
+    )
+    fig.update_traces(
+        hoverinfo="label+value",
+        textinfo="percent",
+        textfont_size=20,
+        marker=dict(line=dict(color="#000000", width=2)),
+    )
+    fig = format_fig(fig)
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# function to display styled datatable
+def styled_datatable(scope_df: pd.DataFrame):
+    st.table(
+        apply_styles(scope_df),
+    )
+    col1, col2 = st.columns([0.8, 0.2])
+    col2.image(
+        "https://raw.githubusercontent.com/PolicyEngine/policyengine-app/master/src/images/logos/policyengine/blue.png",
+        width=80,  # Manually Adjust the width of the image as per requirement
+    )
+
+
+# function to display key metric
+def household_key_metric(scope_df: pd.DataFrame, metric: str):
+    if metric == "income":
+        average_household_income = scope_df[
+            "household_net_income_baseline"
+        ].mean()
+        st.metric(
+            label="Average Household income",
+            value="$" + str(int(average_household_income)),
+        )
+    elif metric == "family":
+        average_family_size = scope_df["family_size"].mean()
+        st.metric(
+            label="Average family size",
+            value=str(int(average_family_size)),
+        )
+
 
 # Start of streamlit application
 st.title("Policy Reform Impact Visualization")
@@ -11,11 +138,30 @@ input_code = st.text_area(
 
 # Button to trigger the calculation
 if st.button("Start simulation"):
-    # Create an empty output container
-    output_container = st.empty()
+    # Preprocess input_code to extract period and delete last three line of code to save runtime
+    try:
+        # Parse the code into an abstract syntax tree (AST)
+        tree = ast.parse(input_code)
+
+        # Instantiate the visitor and visit the AST
+        period_extractor = PeriodExtractor()
+        period_extractor.visit(tree)
+
+        # Apply the transformation to remove the unwanted lines
+        transformer = FilterTransformer()
+        new_tree = transformer.visit(tree)
+
+        # Convert the modified AST back to code
+        modified_code = ast.unparse(new_tree)
+        # Print out for debugging purpose, delete when confirmed
+        st.text(
+            f"Extracted Period:{input_period}\nModified Code:\n{modified_code}"
+        )
+    except Exception as e:
+        st.error(f"Error: {e}")
     try:
         # Execute the Python code
-        exec(input_code)
+        exec(modified_code)
         # Access variables from the local namespace
         local_vars = locals()
         # Retrieve the value of the ***desired variable*** from the local vars
@@ -34,10 +180,16 @@ if st.button("Start simulation"):
         ]
         # Calculate household microdataframe
         baseline_household_df = baseline.calculate_dataframe(
-            HOUSEHOLD_VARIABLES, map_to="household", use_weights=False
+            HOUSEHOLD_VARIABLES,
+            period=input_period,
+            map_to="household",
+            use_weights=False,
         )
         reformed_household_df = reformed.calculate_dataframe(
-            HOUSEHOLD_VARIABLES, map_to="household", use_weights=False
+            HOUSEHOLD_VARIABLES,
+            period=input_period,
+            map_to="household",
+            use_weights=False,
         )
         # Create merged dataframe with difference between household_net_income,
         # household_tax and household_benefits
@@ -62,21 +214,79 @@ if st.button("Start simulation"):
             fin_household_df["net_income_change"]
             / fin_household_df["household_net_income_baseline"]
         )
-
+        # Imputation
+        fin_household_df.fillna(
+            value={"net_income_relative_change": 0}, inplace=True
+        )
         # Check result and display
         if (
             isinstance(baseline_household_df, pd.DataFrame)
             and isinstance(reformed_household_df, pd.DataFrame)
             and isinstance(fin_household_df, pd.DataFrame)
         ):
-            output_container.success("Code executed successfully!")
-            # Display the dataframes for debugging; Delete when confirmed
-            output_container.write("Baseline Household DataFrame:")
-            output_container.dataframe(baseline_household_df)
-            output_container.write("Reformed Household DataFrame:")
-            output_container.dataframe(reformed_household_df)
-            output_container.write("Final Household DataFrame:")
-            output_container.dataframe(fin_household_df)
+            st.success("Code executed successfully!")
+            # Display the dataframes for debugging; Delete when the whole
+            # application is done
+            st.write("Baseline Household DataFrame:")
+            st.dataframe(baseline_household_df)
+            st.write("Reformed Household DataFrame:")
+            st.dataframe(reformed_household_df)
+            st.write("Final Household DataFrame:")
+            st.dataframe(fin_household_df)
+
+            # Output Section
+            # penalties section
+            st.subheader("Top 10 :red[Penalties] :arrow_down:")
+            scope_df = (
+                fin_household_df.sort_values(
+                    by="net_income_relative_change", ascending=True
+                )
+                .head(10)
+                .reset_index(drop=True)
+            )
+            penalty_income_tab, penalty_family_tab = st.tabs(
+                ["Income Status", "Family Status"]
+            )
+            with penalty_income_tab:
+                household_key_metric(scope_df=scope_df, metric="income")
+                with st.expander("Household income decile distribution"):
+                    household_income_graph(scope_df=scope_df)
+                with st.expander("Household income data table"):
+                    temp = scope_df[
+                        [
+                            "household_id",
+                            "household_net_income_baseline",
+                            "net_income_change",
+                            "net_income_relative_change",
+                        ]
+                    ]
+                    styled_datatable(scope_df=temp)
+            # bonus section
+            st.subheader("Top 10 :green[Bonuses] :arrow_up:")
+            scope_df = (
+                fin_household_df.sort_values(
+                    by="net_income_relative_change", ascending=False
+                )
+                .head(10)
+                .reset_index(drop=True)
+            )
+            bonus_income_tab, bonus_family_tab = st.tabs(
+                ["Income Status", "Family Status"]
+            )
+            with bonus_income_tab:
+                household_key_metric(scope_df=scope_df, metric="income")
+                with st.expander("Household income decile distribution"):
+                    household_income_graph(scope_df=scope_df)
+                with st.expander("Household income data table"):
+                    temp = scope_df[
+                        [
+                            "household_id",
+                            "household_net_income_baseline",
+                            "net_income_change",
+                            "net_income_relative_change",
+                        ]
+                    ]
+                    styled_datatable(scope_df=temp)
         elif baseline is None or reformed is None:
             st.error(
                 "Target microsimulation object not found. Check if the output variable names are in the expected format."
