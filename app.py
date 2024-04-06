@@ -70,20 +70,26 @@ def apply_styles(df: pd.DataFrame):
     return temp
 
 
-# function to display income distribution graph
-def household_income_graph(scope_df: pd.DataFrame):
-    # Household income decile distribution (pie chart)
-    label_list = (
-        scope_df["household_income_decile_baseline"].value_counts().index
-    )
-    prefix_label_list = [f"Income Decile {number}" for number in label_list]
+# function to display distribution graph
+def household_pie_graph(scope_df: pd.DataFrame, metric: str):
+    if metric == "income":
+        variable = "household_income_decile_baseline"
+        label_list = scope_df[variable].value_counts().index
+        prefix_label_list = [
+            f"Income Decile {number}" for number in label_list
+        ]
+    elif metric == "family_size":
+        variable = "family_size"
+        label_list = scope_df[variable].value_counts().index
+        prefix_label_list = [
+            f"Family Size of {number}" for number in label_list
+        ]
+    # metric distribution (pie chart)
     fig = go.Figure(
         data=[
             go.Pie(
                 labels=prefix_label_list,
-                values=scope_df["household_income_decile_baseline"]
-                .value_counts()
-                .values,
+                values=scope_df[variable].value_counts().values,
                 hole=0.3,
             )
         ]
@@ -118,13 +124,19 @@ def household_key_metric(scope_df: pd.DataFrame, metric: str):
         ].mean()
         st.metric(
             label="Average Household income",
-            value="$" + str(int(average_household_income)),
+            value="$" + str(round(average_household_income)),
         )
-    elif metric == "family":
+    elif metric == "family_size":
         average_family_size = scope_df["family_size"].mean()
         st.metric(
             label="Average family size",
-            value=str(int(average_family_size)),
+            value=str(round(average_family_size)),
+        )
+    elif metric == "age":
+        top_family_average_age = scope_df["family_average_age"].mean()
+        st.metric(
+            label="Average family age",
+            value=str(round(top_family_average_age)),
         )
 
 
@@ -168,7 +180,7 @@ if st.button("Start simulation"):
         # Retrieve microsimulation object
         baseline = local_vars.get("baseline")
         reformed = local_vars.get("reformed")
-        # Household variable list
+        # Household variable list for calculating income status
         HOUSEHOLD_VARIABLES = [
             "household_id",
             "age",
@@ -214,6 +226,32 @@ if st.button("Start simulation"):
             fin_household_df["net_income_change"]
             / fin_household_df["household_net_income_baseline"]
         )
+        # Create person-level data to aggregate family status
+        PERSON_VARIABLES = [
+            "person_id",
+            "household_id",
+            "age",
+        ]
+        person_df = baseline.calculate_dataframe(
+            PERSON_VARIABLES,
+            period=input_period,
+            map_to="person",
+            use_weights=False,
+        )
+        person_df = (
+            person_df.groupby(by="household_id", as_index=False)
+            .agg({"person_id": "count", "age": "mean"})
+            .rename(
+                columns={
+                    "person_id": "family_size",
+                    "age": "family_average_age",
+                }
+            )
+        )
+        fin_household_df = fin_household_df.merge(
+            person_df[["household_id", "family_size", "family_average_age"]],
+            on="household_id",
+        )
         # Imputation
         fin_household_df.fillna(
             value={"net_income_relative_change": 0}, inplace=True
@@ -231,6 +269,8 @@ if st.button("Start simulation"):
             st.dataframe(baseline_household_df)
             st.write("Reformed Household DataFrame:")
             st.dataframe(reformed_household_df)
+            st.write("Person-Level Data:")
+            st.dataframe(person_df)
             st.write("Final Household DataFrame:")
             st.dataframe(fin_household_df)
 
@@ -250,7 +290,7 @@ if st.button("Start simulation"):
             with penalty_income_tab:
                 household_key_metric(scope_df=scope_df, metric="income")
                 with st.expander("Household income decile distribution"):
-                    household_income_graph(scope_df=scope_df)
+                    household_pie_graph(scope_df=scope_df, metric="income")
                 with st.expander("Household income data table"):
                     temp = scope_df[
                         [
@@ -258,6 +298,27 @@ if st.button("Start simulation"):
                             "household_net_income_baseline",
                             "net_income_change",
                             "net_income_relative_change",
+                        ]
+                    ]
+                    styled_datatable(scope_df=temp)
+            with penalty_family_tab:
+                col1, col2 = st.columns(2)
+                with col1:
+                    household_key_metric(
+                        scope_df=scope_df, metric="family_size"
+                    )
+                with col2:
+                    household_key_metric(scope_df=scope_df, metric="age")
+                with st.expander("Household family size distribution"):
+                    household_pie_graph(
+                        scope_df=scope_df, metric="family_size"
+                    )
+                with st.expander("Household family status table"):
+                    temp = scope_df[
+                        [
+                            "household_id",
+                            "family_size",
+                            "family_average_age",
                         ]
                     ]
                     styled_datatable(scope_df=temp)
@@ -276,7 +337,7 @@ if st.button("Start simulation"):
             with bonus_income_tab:
                 household_key_metric(scope_df=scope_df, metric="income")
                 with st.expander("Household income decile distribution"):
-                    household_income_graph(scope_df=scope_df)
+                    household_pie_graph(scope_df=scope_df, metric="income")
                 with st.expander("Household income data table"):
                     temp = scope_df[
                         [
@@ -284,6 +345,27 @@ if st.button("Start simulation"):
                             "household_net_income_baseline",
                             "net_income_change",
                             "net_income_relative_change",
+                        ]
+                    ]
+                    styled_datatable(scope_df=temp)
+            with bonus_family_tab:
+                col1, col2 = st.columns(2)
+                with col1:
+                    household_key_metric(
+                        scope_df=scope_df, metric="family_size"
+                    )
+                with col2:
+                    household_key_metric(scope_df=scope_df, metric="age")
+                with st.expander("Household family size distribution"):
+                    household_pie_graph(
+                        scope_df=scope_df, metric="family_size"
+                    )
+                with st.expander("Household family status table"):
+                    temp = scope_df[
+                        [
+                            "household_id",
+                            "family_size",
+                            "family_average_age",
                         ]
                     ]
                     styled_datatable(scope_df=temp)
