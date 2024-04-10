@@ -41,9 +41,14 @@ class FilterTransformer(ast.NodeTransformer):
 
 # Define a function to apply CSS styles
 def apply_styles(df: pd.DataFrame):
-    temp = df.style.set_properties(
+    # Streamlit table as default display all floating points.
+    # Need to use styler to display less decimals
+    temp = df.style
+    float_columns = df.select_dtypes(include=["float"]).columns
+    temp = temp.set_properties(
         **{
             "font-family": "Roboto Serif",
+            "text-align": "left",
             "color": "black",
         },
     ).set_table_styles(
@@ -66,7 +71,7 @@ def apply_styles(df: pd.DataFrame):
             },
         ]
     )
-
+    temp = temp.format("{:.2f}", subset=float_columns)
     return temp
 
 
@@ -231,6 +236,10 @@ if st.button("Start simulation"):
             "person_id",
             "household_id",
             "age",
+            "is_child",
+            "filing_status",
+            "is_married",
+            "state_code",
         ]
         person_df = baseline.calculate_dataframe(
             PERSON_VARIABLES,
@@ -240,16 +249,32 @@ if st.button("Start simulation"):
         )
         person_df = (
             person_df.groupby(by="household_id", as_index=False)
-            .agg({"person_id": "count", "age": "mean"})
+            .agg(
+                {
+                    "person_id": "count",
+                    "age": "mean",
+                    "is_child": "sum",
+                    "filing_status": "first",
+                    "is_married": "sum",
+                    "state_code": "first",
+                }
+            )
             .rename(
                 columns={
                     "person_id": "family_size",
                     "age": "family_average_age",
+                    "is_child": "number_of_child",
+                    "is_married": "is_joint",
                 }
             )
         )
+        # create column to indicate if a household is filing jointly
+        person_df["is_joint"] = person_df["is_joint"].apply(
+            lambda x: "Yes" if x > 0 else "No"
+        )
+        # merge aggregated person-level data to final dataframe
         fin_household_df = fin_household_df.merge(
-            person_df[["household_id", "family_size", "family_average_age"]],
+            person_df,
             on="household_id",
         )
         # Imputation
@@ -292,14 +317,35 @@ if st.button("Start simulation"):
                 with st.expander("Household income decile distribution"):
                     household_pie_graph(scope_df=scope_df, metric="income")
                 with st.expander("Household income data table"):
+                    # scope dataframe
                     temp = scope_df[
                         [
                             "household_id",
                             "household_net_income_baseline",
                             "net_income_change",
                             "net_income_relative_change",
+                            "is_joint",
+                            "filing_status",
+                            "state_code",
                         ]
                     ]
+                    temp["household_id"] = temp["household_id"].astype(int)
+                    temp[
+                        [
+                            "household_net_income_baseline",
+                            "net_income_change",
+                            "net_income_relative_change",
+                        ]
+                    ] = temp[
+                        [
+                            "household_net_income_baseline",
+                            "net_income_change",
+                            "net_income_relative_change",
+                        ]
+                    ].round(
+                        2
+                    )
+                    # display styled datatable
                     styled_datatable(scope_df=temp)
             with penalty_family_tab:
                 col1, col2 = st.columns(2)
@@ -319,8 +365,18 @@ if st.button("Start simulation"):
                             "household_id",
                             "family_size",
                             "family_average_age",
+                            "number_of_child",
+                            "is_joint",
+                            "filing_status",
+                            "state_code",
                         ]
                     ]
+                    temp[["household_id", "family_size"]] = temp[
+                        ["household_id", "family_size"]
+                    ].astype(int)
+                    temp["family_average_age"] = temp[
+                        "family_average_age"
+                    ].round(0)
                     styled_datatable(scope_df=temp)
             # bonus section
             st.subheader("Top 10 :green[Bonuses] :arrow_up:")
@@ -345,8 +401,27 @@ if st.button("Start simulation"):
                             "household_net_income_baseline",
                             "net_income_change",
                             "net_income_relative_change",
+                            "is_joint",
+                            "filing_status",
+                            "state_code",
                         ]
                     ]
+                    temp["household_id"] = temp["household_id"].astype(int)
+                    temp[
+                        [
+                            "household_net_income_baseline",
+                            "net_income_change",
+                            "net_income_relative_change",
+                        ]
+                    ] = temp[
+                        [
+                            "household_net_income_baseline",
+                            "net_income_change",
+                            "net_income_relative_change",
+                        ]
+                    ].round(
+                        2
+                    )
                     styled_datatable(scope_df=temp)
             with bonus_family_tab:
                 col1, col2 = st.columns(2)
@@ -366,8 +441,18 @@ if st.button("Start simulation"):
                             "household_id",
                             "family_size",
                             "family_average_age",
+                            "number_of_child",
+                            "is_joint",
+                            "filing_status",
+                            "state_code",
                         ]
                     ]
+                    temp[["household_id", "family_size"]] = temp[
+                        ["household_id", "family_size"]
+                    ].astype(int)
+                    temp["family_average_age"] = temp[
+                        "family_average_age"
+                    ].round(0)
                     styled_datatable(scope_df=temp)
         elif baseline is None or reformed is None:
             st.error(
