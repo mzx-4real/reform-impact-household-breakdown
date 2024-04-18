@@ -39,40 +39,59 @@ class FilterTransformer(ast.NodeTransformer):
         )
 
 
-# Define a function to apply CSS styles
+# Define a function to apply CSS styles to pandas styler object
 def apply_styles(df: pd.DataFrame):
-    # Streamlit table as default display all floating points.
-    # Need to use styler to display less decimals
-    temp = df.style
+    # Intialize a list of tuples containing the CSS styles for table headers
+    th_props = [
+        ("font-size", "10px"),
+        ("text-align", "left"),
+        ("font-weight", "bold"),
+        ("color", "black"),
+        ("background-color", "lightblue"),
+        ("border", "1px solid black"),
+    ]
+
+    # Intialize a list of tuples containing the CSS styles for table data
+    td_props = [
+        ("font-size", "14px"),
+        ("text-align", "left"),
+        ("border", "1px solid black"),
+    ]
+
+    # Define hover props for table data and headers
+    cell_hover_props = [("background-color", "lightblue")]
+    headers_props = [("text-align", "left")]
+
+    # Aggregate styles in a list
+    styles = [
+        dict(selector="th", props=th_props),
+        dict(selector="td", props=td_props),
+        dict(selector="td:hover", props=cell_hover_props),
+        dict(selector="th.col_heading", props=headers_props),
+        dict(selector="th.col_heading.level0", props=headers_props),
+        dict(selector="th.col_heading.level1", props=td_props),
+    ]
+    styler = df.style
     float_columns = df.select_dtypes(include=["float"]).columns
-    temp = temp.set_properties(
-        **{
-            "font-family": "Roboto Serif",
-            "text-align": "left",
-            "color": "black",
-        },
-    ).set_table_styles(
-        [
-            {
-                "selector": "th",
-                "props": [
-                    ("background-color", "lightblue"),
-                    ("color", "black"),
-                    ("font-size", "14px"),
-                ],
-            },
-            {
-                "selector": "tbody",
-                "props": [
-                    ("background-color", "white"),
-                    ("color", "black"),
-                    ("font-size", "14px"),
-                ],
-            },
-        ]
+    styler = (
+        styler.format("{:.2f}", subset=float_columns)
+        .set_table_styles(styles)
+        .hide()
     )
-    temp = temp.format("{:.2f}", subset=float_columns)
-    return temp
+    return styler
+
+
+# Function to change column name for display purpose
+def rename_column_str(scope_df: pd.DataFrame):
+    """
+    Renames columns
+    replacing underscores with spaces and capitalizing first letters of words.
+    """
+    new_names = {
+        col: " ".join([part.title() for part in col.split("_")])
+        for col in scope_df.columns
+    }
+    return scope_df.rename(columns=new_names)
 
 
 # function to display distribution graph
@@ -111,8 +130,41 @@ def household_pie_graph(scope_df: pd.DataFrame, metric: str):
 
 # function to display styled datatable
 def styled_datatable(scope_df: pd.DataFrame):
-    st.table(
-        apply_styles(scope_df),
+    # Define default table window height
+    table_height = min(len(scope_df) * 50, 300)
+    # Call styler function to return styler object
+    styler = apply_styles(scope_df)
+    # Use markdown to show the table as HTML
+    st.markdown(
+        f'<div style="overflow-x:auto; overflow-y:auto; max-height: {table_height}px; width: 100%; margin-bottom: 10px;">'
+        f"""
+        <style>
+        table {{
+        width: 100%; /* Adjust width as needed */
+        }}
+        thead th {{
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background-color: lightblue;
+        }}
+        thead th:first-child {{
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background-color: lightblue;
+        }}
+        tbody th:first-child, tbody td:first-child {{
+            position: sticky;
+            left: 0;
+            z-index: 1;
+            background-color: lightblue;
+        }}
+        </style>
+        """
+        f"{styler.to_html()}"
+        f"</div>",
+        unsafe_allow_html=True,
     )
     col1, col2 = st.columns([0.8, 0.2])
     col2.image(
@@ -264,12 +316,11 @@ if st.button("Start simulation"):
                     "person_id": "family_size",
                     "age": "family_average_age",
                     "is_child": "number_of_child",
-                    "is_married": "is_joint",
                 }
             )
         )
         # create column to indicate if a household is filing jointly
-        person_df["is_joint"] = person_df["is_joint"].apply(
+        person_df["is_married"] = person_df["is_married"].apply(
             lambda x: "Yes" if x > 0 else "No"
         )
         # merge aggregated person-level data to final dataframe
@@ -324,27 +375,14 @@ if st.button("Start simulation"):
                             "household_net_income_baseline",
                             "net_income_change",
                             "net_income_relative_change",
-                            "is_joint",
+                            "is_married",
                             "filing_status",
                             "state_code",
                         ]
                     ]
                     temp["household_id"] = temp["household_id"].astype(int)
-                    temp[
-                        [
-                            "household_net_income_baseline",
-                            "net_income_change",
-                            "net_income_relative_change",
-                        ]
-                    ] = temp[
-                        [
-                            "household_net_income_baseline",
-                            "net_income_change",
-                            "net_income_relative_change",
-                        ]
-                    ].round(
-                        2
-                    )
+                    # Rename column names
+                    temp = rename_column_str(scope_df=temp)
                     # display styled datatable
                     styled_datatable(scope_df=temp)
             with penalty_family_tab:
@@ -366,7 +404,7 @@ if st.button("Start simulation"):
                             "family_size",
                             "family_average_age",
                             "number_of_child",
-                            "is_joint",
+                            "is_married",
                             "filing_status",
                             "state_code",
                         ]
@@ -377,6 +415,10 @@ if st.button("Start simulation"):
                     temp["family_average_age"] = temp[
                         "family_average_age"
                     ].round(0)
+                    temp["family_average_age"] = temp[
+                        "family_average_age"
+                    ].astype(int)
+                    temp = rename_column_str(scope_df=temp)
                     styled_datatable(scope_df=temp)
             # bonus section
             st.subheader("Top 10 :green[Bonuses] :arrow_up:")
@@ -401,27 +443,13 @@ if st.button("Start simulation"):
                             "household_net_income_baseline",
                             "net_income_change",
                             "net_income_relative_change",
-                            "is_joint",
+                            "is_married",
                             "filing_status",
                             "state_code",
                         ]
                     ]
                     temp["household_id"] = temp["household_id"].astype(int)
-                    temp[
-                        [
-                            "household_net_income_baseline",
-                            "net_income_change",
-                            "net_income_relative_change",
-                        ]
-                    ] = temp[
-                        [
-                            "household_net_income_baseline",
-                            "net_income_change",
-                            "net_income_relative_change",
-                        ]
-                    ].round(
-                        2
-                    )
+                    temp = rename_column_str(scope_df=temp)
                     styled_datatable(scope_df=temp)
             with bonus_family_tab:
                 col1, col2 = st.columns(2)
@@ -442,7 +470,7 @@ if st.button("Start simulation"):
                             "family_size",
                             "family_average_age",
                             "number_of_child",
-                            "is_joint",
+                            "is_married",
                             "filing_status",
                             "state_code",
                         ]
@@ -453,6 +481,10 @@ if st.button("Start simulation"):
                     temp["family_average_age"] = temp[
                         "family_average_age"
                     ].round(0)
+                    temp["family_average_age"] = temp[
+                        "family_average_age"
+                    ].astype(int)
+                    temp = rename_column_str(scope_df=temp)
                     styled_datatable(scope_df=temp)
         elif baseline is None or reformed is None:
             st.error(
