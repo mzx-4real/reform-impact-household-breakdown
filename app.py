@@ -366,6 +366,7 @@ if st.button("Start simulation"):
             with penalty_income_tab:
                 household_key_metric(scope_df=scope_df, metric="income")
                 with st.expander("Household income decile distribution"):
+                    st.write("**Household income decile pie chart**")
                     household_pie_graph(scope_df=scope_df, metric="income")
                 with st.expander("Household income data table"):
                     # scope dataframe
@@ -384,6 +385,7 @@ if st.button("Start simulation"):
                     # Rename column names
                     temp = rename_column_str(scope_df=temp)
                     # display styled datatable
+                    st.write("**Household income data table**")
                     styled_datatable(scope_df=temp)
             with penalty_family_tab:
                 col1, col2 = st.columns(2)
@@ -394,6 +396,7 @@ if st.button("Start simulation"):
                 with col2:
                     household_key_metric(scope_df=scope_df, metric="age")
                 with st.expander("Household family size distribution"):
+                    st.write("**Household family size pie chart**")
                     household_pie_graph(
                         scope_df=scope_df, metric="family_size"
                     )
@@ -419,6 +422,7 @@ if st.button("Start simulation"):
                         "family_average_age"
                     ].astype(int)
                     temp = rename_column_str(scope_df=temp)
+                    st.write("**Household family status table**")
                     styled_datatable(scope_df=temp)
             # bonus section
             st.subheader("Top 10 :green[Bonuses] :arrow_up:")
@@ -435,6 +439,7 @@ if st.button("Start simulation"):
             with bonus_income_tab:
                 household_key_metric(scope_df=scope_df, metric="income")
                 with st.expander("Household income decile distribution"):
+                    st.write("**Household income decile pie chart**")
                     household_pie_graph(scope_df=scope_df, metric="income")
                 with st.expander("Household income data table"):
                     temp = scope_df[
@@ -450,6 +455,7 @@ if st.button("Start simulation"):
                     ]
                     temp["household_id"] = temp["household_id"].astype(int)
                     temp = rename_column_str(scope_df=temp)
+                    st.write("**Household income data table**")
                     styled_datatable(scope_df=temp)
             with bonus_family_tab:
                 col1, col2 = st.columns(2)
@@ -460,6 +466,7 @@ if st.button("Start simulation"):
                 with col2:
                     household_key_metric(scope_df=scope_df, metric="age")
                 with st.expander("Household family size distribution"):
+                    st.write("**Household family size pie chart**")
                     household_pie_graph(
                         scope_df=scope_df, metric="family_size"
                     )
@@ -485,6 +492,7 @@ if st.button("Start simulation"):
                         "family_average_age"
                     ].astype(int)
                     temp = rename_column_str(scope_df=temp)
+                    st.write("**Household family status table**")
                     styled_datatable(scope_df=temp)
         elif baseline is None or reformed is None:
             st.error(
