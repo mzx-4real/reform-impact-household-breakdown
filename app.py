@@ -328,6 +328,10 @@ if st.button("Start simulation"):
             person_df,
             on="household_id",
         )
+        # drop household with negative household net income
+        fin_household_df = fin_household_df[
+            ~(fin_household_df["household_net_income_baseline"] < 0)
+        ]
         # Imputation
         fin_household_df.fillna(
             value={"net_income_relative_change": 0}, inplace=True
