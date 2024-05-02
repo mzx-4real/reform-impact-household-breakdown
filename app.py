@@ -74,7 +74,7 @@ def apply_styles(df: pd.DataFrame):
     styler = df.style
     float_columns = df.select_dtypes(include=["float"]).columns
     styler = (
-        styler.format("{:.2f}", subset=float_columns)
+        styler.format("{:.4f}", subset=float_columns)
         .set_table_styles(styles)
         .hide()
     )
@@ -364,70 +364,77 @@ if st.button("Start simulation"):
                 .head(10)
                 .reset_index(drop=True)
             )
-            penalty_income_tab, penalty_family_tab = st.tabs(
-                ["Income Status", "Family Status"]
-            )
-            with penalty_income_tab:
-                household_key_metric(scope_df=scope_df, metric="income")
-                with st.expander("Household income decile distribution"):
-                    st.write("**Household income decile pie chart**")
-                    household_pie_graph(scope_df=scope_df, metric="income")
-                with st.expander("Household income data table"):
-                    # scope dataframe
-                    temp = scope_df[
-                        [
-                            "household_id",
-                            "household_net_income_baseline",
-                            "net_income_change",
-                            "net_income_relative_change",
-                            "is_married",
-                            "filing_status",
-                            "state_code",
+            # See if there is peanlties
+            scope_df = scope_df[scope_df["net_income_change"] < 0]
+            if not scope_df.empty:
+                penalty_income_tab, penalty_family_tab = st.tabs(
+                    ["Income Status", "Family Status"]
+                )
+                with penalty_income_tab:
+                    household_key_metric(scope_df=scope_df, metric="income")
+                    with st.expander("Household income decile distribution"):
+                        st.write("**Household income decile pie chart**")
+                        household_pie_graph(scope_df=scope_df, metric="income")
+                    with st.expander("Household income data table"):
+                        # scope dataframe
+                        temp = scope_df[
+                            [
+                                "household_id",
+                                "household_net_income_baseline",
+                                "net_income_change",
+                                "net_income_relative_change",
+                                "is_married",
+                                "filing_status",
+                                "state_code",
+                            ]
                         ]
-                    ]
-                    temp["household_id"] = temp["household_id"].astype(int)
-                    # Rename column names
-                    temp = rename_column_str(scope_df=temp)
-                    # display styled datatable
-                    st.write("**Household income data table**")
-                    styled_datatable(scope_df=temp)
-            with penalty_family_tab:
-                col1, col2 = st.columns(2)
-                with col1:
-                    household_key_metric(
-                        scope_df=scope_df, metric="family_size"
-                    )
-                with col2:
-                    household_key_metric(scope_df=scope_df, metric="age")
-                with st.expander("Household family size distribution"):
-                    st.write("**Household family size pie chart**")
-                    household_pie_graph(
-                        scope_df=scope_df, metric="family_size"
-                    )
-                with st.expander("Household family status table"):
-                    temp = scope_df[
-                        [
-                            "household_id",
-                            "family_size",
-                            "family_average_age",
-                            "number_of_child",
-                            "is_married",
-                            "filing_status",
-                            "state_code",
+                        temp["household_id"] = temp["household_id"].astype(int)
+                        # Rename column names
+                        temp = rename_column_str(scope_df=temp)
+                        # display styled datatable
+                        st.write("**Household income data table**")
+                        styled_datatable(scope_df=temp)
+                with penalty_family_tab:
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        household_key_metric(
+                            scope_df=scope_df, metric="family_size"
+                        )
+                    with col2:
+                        household_key_metric(scope_df=scope_df, metric="age")
+                    with st.expander("Household family size distribution"):
+                        st.write("**Household family size pie chart**")
+                        household_pie_graph(
+                            scope_df=scope_df, metric="family_size"
+                        )
+                    with st.expander("Household family status table"):
+                        temp = scope_df[
+                            [
+                                "household_id",
+                                "family_size",
+                                "family_average_age",
+                                "number_of_child",
+                                "is_married",
+                                "filing_status",
+                                "state_code",
+                            ]
                         ]
-                    ]
-                    temp[["household_id", "family_size"]] = temp[
-                        ["household_id", "family_size"]
-                    ].astype(int)
-                    temp["family_average_age"] = temp[
-                        "family_average_age"
-                    ].round(0)
-                    temp["family_average_age"] = temp[
-                        "family_average_age"
-                    ].astype(int)
-                    temp = rename_column_str(scope_df=temp)
-                    st.write("**Household family status table**")
-                    styled_datatable(scope_df=temp)
+                        temp[["household_id", "family_size"]] = temp[
+                            ["household_id", "family_size"]
+                        ].astype(int)
+                        temp["family_average_age"] = temp[
+                            "family_average_age"
+                        ].round(0)
+                        temp["family_average_age"] = temp[
+                            "family_average_age"
+                        ].astype(int)
+                        temp = rename_column_str(scope_df=temp)
+                        st.write("**Household family status table**")
+                        styled_datatable(scope_df=temp)
+            else:
+                st.write(
+                    "**All Household Have Positive Impact On This Policy Reform.**"
+                )
             # bonus section
             st.subheader("Top 10 :green[Bonuses] :arrow_up:")
             scope_df = (
@@ -437,67 +444,73 @@ if st.button("Start simulation"):
                 .head(10)
                 .reset_index(drop=True)
             )
-            bonus_income_tab, bonus_family_tab = st.tabs(
-                ["Income Status", "Family Status"]
-            )
-            with bonus_income_tab:
-                household_key_metric(scope_df=scope_df, metric="income")
-                with st.expander("Household income decile distribution"):
-                    st.write("**Household income decile pie chart**")
-                    household_pie_graph(scope_df=scope_df, metric="income")
-                with st.expander("Household income data table"):
-                    temp = scope_df[
-                        [
-                            "household_id",
-                            "household_net_income_baseline",
-                            "net_income_change",
-                            "net_income_relative_change",
-                            "is_married",
-                            "filing_status",
-                            "state_code",
+            scope_df = scope_df[scope_df["net_income_change"] > 0]
+            if not scope_df.empty:
+                bonus_income_tab, bonus_family_tab = st.tabs(
+                    ["Income Status", "Family Status"]
+                )
+                with bonus_income_tab:
+                    household_key_metric(scope_df=scope_df, metric="income")
+                    with st.expander("Household income decile distribution"):
+                        st.write("**Household income decile pie chart**")
+                        household_pie_graph(scope_df=scope_df, metric="income")
+                    with st.expander("Household income data table"):
+                        temp = scope_df[
+                            [
+                                "household_id",
+                                "household_net_income_baseline",
+                                "net_income_change",
+                                "net_income_relative_change",
+                                "is_married",
+                                "filing_status",
+                                "state_code",
+                            ]
                         ]
-                    ]
-                    temp["household_id"] = temp["household_id"].astype(int)
-                    temp = rename_column_str(scope_df=temp)
-                    st.write("**Household income data table**")
-                    styled_datatable(scope_df=temp)
-            with bonus_family_tab:
-                col1, col2 = st.columns(2)
-                with col1:
-                    household_key_metric(
-                        scope_df=scope_df, metric="family_size"
-                    )
-                with col2:
-                    household_key_metric(scope_df=scope_df, metric="age")
-                with st.expander("Household family size distribution"):
-                    st.write("**Household family size pie chart**")
-                    household_pie_graph(
-                        scope_df=scope_df, metric="family_size"
-                    )
-                with st.expander("Household family status table"):
-                    temp = scope_df[
-                        [
-                            "household_id",
-                            "family_size",
-                            "family_average_age",
-                            "number_of_child",
-                            "is_married",
-                            "filing_status",
-                            "state_code",
+                        temp["household_id"] = temp["household_id"].astype(int)
+                        temp = rename_column_str(scope_df=temp)
+                        st.write("**Household income data table**")
+                        styled_datatable(scope_df=temp)
+                with bonus_family_tab:
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        household_key_metric(
+                            scope_df=scope_df, metric="family_size"
+                        )
+                    with col2:
+                        household_key_metric(scope_df=scope_df, metric="age")
+                    with st.expander("Household family size distribution"):
+                        st.write("**Household family size pie chart**")
+                        household_pie_graph(
+                            scope_df=scope_df, metric="family_size"
+                        )
+                    with st.expander("Household family status table"):
+                        temp = scope_df[
+                            [
+                                "household_id",
+                                "family_size",
+                                "family_average_age",
+                                "number_of_child",
+                                "is_married",
+                                "filing_status",
+                                "state_code",
+                            ]
                         ]
-                    ]
-                    temp[["household_id", "family_size"]] = temp[
-                        ["household_id", "family_size"]
-                    ].astype(int)
-                    temp["family_average_age"] = temp[
-                        "family_average_age"
-                    ].round(0)
-                    temp["family_average_age"] = temp[
-                        "family_average_age"
-                    ].astype(int)
-                    temp = rename_column_str(scope_df=temp)
-                    st.write("**Household family status table**")
-                    styled_datatable(scope_df=temp)
+                        temp[["household_id", "family_size"]] = temp[
+                            ["household_id", "family_size"]
+                        ].astype(int)
+                        temp["family_average_age"] = temp[
+                            "family_average_age"
+                        ].round(0)
+                        temp["family_average_age"] = temp[
+                            "family_average_age"
+                        ].astype(int)
+                        temp = rename_column_str(scope_df=temp)
+                        st.write("**Household family status table**")
+                        styled_datatable(scope_df=temp)
+            else:
+                st.write(
+                    "**All Household Have Negative Impact On This Policy Reform.**"
+                )
         elif baseline is None or reformed is None:
             st.error(
                 "Target microsimulation object not found. Check if the output variable names are in the expected format."
