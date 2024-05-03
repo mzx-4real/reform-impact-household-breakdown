@@ -238,7 +238,7 @@ if st.button("Start simulation"):
         baseline = local_vars.get("baseline")
         reformed = local_vars.get("reformed")
         # Break point for debugging purpose
-        st.write("simulation object created")
+        st.write("simulation object created.")
         # Household variable list for calculating income status
         HOUSEHOLD_VARIABLES = [
             "household_id",
