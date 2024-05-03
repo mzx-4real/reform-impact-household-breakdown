@@ -237,6 +237,8 @@ if st.button("Start simulation"):
         # Retrieve microsimulation object
         baseline = local_vars.get("baseline")
         reformed = local_vars.get("reformed")
+        # Break point for debugging purpose
+        st.write("simulation object created")
         # Household variable list for calculating income status
         HOUSEHOLD_VARIABLES = [
             "household_id",
@@ -254,12 +256,16 @@ if st.button("Start simulation"):
             map_to="household",
             use_weights=False,
         )
+        # Break point for debugging purpose
+        st.write("baseline dataframe created.")
         reformed_household_df = reformed.calculate_dataframe(
             HOUSEHOLD_VARIABLES,
             period=input_period,
             map_to="household",
             use_weights=False,
         )
+        # Break point for debugging purpose
+        st.write("reformed dataframe created.")
         # Create merged dataframe with difference between household_net_income,
         # household_tax and household_benefits
         fin_household_df = baseline_household_df.merge(
@@ -336,6 +342,8 @@ if st.button("Start simulation"):
         fin_household_df.fillna(
             value={"net_income_relative_change": 0}, inplace=True
         )
+        # Break point for debugging purpose
+        st.write("Dataframe process done.")
         # Check result and display
         if (
             isinstance(baseline_household_df, pd.DataFrame)
