@@ -305,6 +305,7 @@ if st.button("Start simulation"):
             map_to="person",
             use_weights=False,
         )
+        show_person_df = person_df.copy()
         person_df = (
             person_df.groupby(by="household_id", as_index=False)
             .agg(
@@ -357,6 +358,8 @@ if st.button("Start simulation"):
             st.dataframe(baseline_household_df)
             st.write("Reformed Household DataFrame:")
             st.dataframe(reformed_household_df)
+            st.write("Raw Person-Level Data:")
+            st.dataframe(show_person_df)
             st.write("Person-Level Data:")
             st.dataframe(person_df)
             st.write("Final Household DataFrame:")
