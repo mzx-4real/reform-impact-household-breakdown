@@ -131,7 +131,7 @@ def household_pie_graph(scope_df: pd.DataFrame, metric: str):
 # function to display styled datatable
 def styled_datatable(scope_df: pd.DataFrame):
     # Define default table window height
-    table_height = min(len(scope_df) * 50, 300)
+    table_height = 300
     # Call styler function to return styler object
     styler = apply_styles(scope_df)
     # Use markdown to show the table as HTML
