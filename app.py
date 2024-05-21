@@ -74,10 +74,15 @@ def apply_styles(df: pd.DataFrame):
     styler = df.style
     float_columns = df.select_dtypes(include=["float"]).columns
     styler = (
-        styler.format("{:.4f}", subset=float_columns)
+        # Display two decimals for float columns
+        styler.format("{:.2f}", subset=float_columns)
         .set_table_styles(styles)
         .hide()
     )
+    # Additionally display relative change as percentage format if exists
+    if "Net Income Relative Change" in df.columns:
+        percentage_columns = ["Net Income Relative Change"]
+        styler = styler.format("{:.2%}", subset=percentage_columns)
     return styler
 
 
@@ -209,6 +214,12 @@ input_code = st.text_area(
 if st.button("Start simulation"):
     # Preprocess input_code to extract period and delete last three line of code to save runtime
     try:
+        # Start streamlit progress bar
+        progress_text = (
+            "Simulation start. Please wait. The progress may last for minutes."
+        )
+        progress_bar = st.progress(0, text=progress_text)
+
         # Parse the code into an abstract syntax tree (AST)
         tree = ast.parse(input_code)
 
@@ -226,6 +237,8 @@ if st.button("Start simulation"):
         st.text(
             f"Extracted Period:{input_period}\nModified Code:\n{modified_code}"
         )
+        progress_text = "Code parse success."
+        progress_bar.progress(20, text=progress_text)
     except Exception as e:
         st.error(f"Error: {e}")
     try:
@@ -239,6 +252,8 @@ if st.button("Start simulation"):
         reformed = local_vars.get("reformed")
         # Break point for debugging purpose
         st.write("simulation object created.")
+        progress_text = "Simulation object created."
+        progress_bar.progress(40, text=progress_text)
         # Household variable list for calculating income status
         HOUSEHOLD_VARIABLES = [
             "household_id",
@@ -258,6 +273,8 @@ if st.button("Start simulation"):
         )
         # Break point for debugging purpose
         st.write("baseline dataframe created.")
+        progress_text = "Baseline dataframe created."
+        progress_bar.progress(60, text=progress_text)
         reformed_household_df = reformed.calculate_dataframe(
             HOUSEHOLD_VARIABLES,
             period=input_period,
@@ -266,6 +283,8 @@ if st.button("Start simulation"):
         )
         # Break point for debugging purpose
         st.write("reformed dataframe created.")
+        progress_text = "Reformed dataframe created."
+        progress_bar.progress(80, text=progress_text)
         # Create merged dataframe with difference between household_net_income,
         # household_tax and household_benefits
         fin_household_df = baseline_household_df.merge(
@@ -305,6 +324,19 @@ if st.button("Start simulation"):
             map_to="person",
             use_weights=False,
         )
+        # Show_all_df calculate all variables for debugging purpose
+        # Delete when completed
+        ALL_VARIABLES = baseline.tax_benefit_system.variables.keys()
+        show_all_df = baseline.calculate_dataframe(
+            ALL_VARIABLES,
+            period=input_period,
+            map_to="person",
+            use_weights=False,
+        )
+        # Break point for debugging purpose
+        st.write("all variable dataframe and person level dataframe created.")
+        # Show_person_df display raw person-level data for debugging purpose
+        # Delete when completed
         show_person_df = person_df.copy()
         person_df = (
             person_df.groupby(by="household_id", as_index=False)
@@ -345,6 +377,10 @@ if st.button("Start simulation"):
         )
         # Break point for debugging purpose
         st.write("Dataframe process done.")
+        progress_text = "Dataframe process done."
+        progress_bar.progress(100, text=progress_text)
+        # Clear progress bar when done
+        progress_bar.empty()
         # Check result and display
         if (
             isinstance(baseline_household_df, pd.DataFrame)
@@ -358,6 +394,8 @@ if st.button("Start simulation"):
             st.dataframe(baseline_household_df)
             st.write("Reformed Household DataFrame:")
             st.dataframe(reformed_household_df)
+            st.write("All Variable Person-Level Data:")
+            st.dataframe(show_all_df)
             st.write("Raw Person-Level Data:")
             st.dataframe(show_person_df)
             st.write("Person-Level Data:")
