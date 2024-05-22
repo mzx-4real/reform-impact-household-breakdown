@@ -326,7 +326,7 @@ if st.button("Start simulation"):
         )
         # Show_all_df calculate all variables for debugging purpose
         # Delete when completed
-        ALL_VARIABLES = baseline.tax_benefit_system.variables.keys()
+        ALL_VARIABLES = list(baseline.tax_benefit_system.variables.keys())
         show_all_df = baseline.calculate_dataframe(
             ALL_VARIABLES,
             period=input_period,
