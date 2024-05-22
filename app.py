@@ -125,9 +125,10 @@ def household_pie_graph(scope_df: pd.DataFrame, metric: str):
     )
     fig.update_traces(
         hoverinfo="label+value",
-        textinfo="percent",
+        textinfo="label+percent",
         textfont_size=20,
         marker=dict(line=dict(color="#000000", width=2)),
+        hovertemplate="%{label}: This category has %{value} household.<extra></extra>",
     )
     fig = format_fig(fig)
     st.plotly_chart(fig, use_container_width=True)
